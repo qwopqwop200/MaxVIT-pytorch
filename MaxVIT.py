@@ -202,7 +202,7 @@ class Max_Block(nn.Module):
         self.mbconv = MBConv(in_dim,out_dim,mbconv_ksize,pooling_size,mbconv_expand_rate,se_reduce_rate,drop)
         self.block_attn = Window_Block(out_dim, block_size, num_heads, mlp_ratio, qkv_bias,qk_scale, drop, 
                                        attn_drop,drop_path, act_layer ,norm_layer)
-        self.grid_attn = Grid_Block(out_dim, block_size, num_heads, mlp_ratio, qkv_bias,qk_scale, drop, 
+        self.grid_attn = Grid_Block(out_dim, grid_size, num_heads, mlp_ratio, qkv_bias,qk_scale, drop, 
                                     attn_drop,drop_path, act_layer ,norm_layer)
         
     def forward(self, x):
