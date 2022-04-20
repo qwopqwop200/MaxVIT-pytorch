@@ -127,11 +127,11 @@ class Rel_Attention(nn.Module):
         k = k.reshape([-1,C,N]).reshape(-1, self.num_heads, C // self.num_heads, N).permute(0,1,3,2).contiguous()
         v = v.reshape([-1,C,N]).reshape(-1, self.num_heads, C // self.num_heads, N).permute(0,1,3,2).contiguous()
 
-        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = (q @ k.transpose(-2, -1).contiguous()) * self.scale
         attn = attn + relative_bias
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
-        x = (attn @ v).transpose(2, 3).reshape([-1,C,self.win_h,self.win_w])
+        x = (attn @ v).transpose(2, 3).contiguous().reshape([-1,C,self.win_h,self.win_w])
         x = self.proj(x)
         x = self.proj_drop(x).reshape([B,H,W,C,self.win_h,self.win_w])
         return x
