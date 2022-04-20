@@ -8,9 +8,9 @@ class Channel_Layernorm(nn.Module):
         self.ln = nn.LayerNorm(dim)
         
     def forward(self, x):
-        x = x.permute(0, 2, 3, 1)
+        x = x.permute(0, 2, 3, 1).contiguous()
         x = self.ln(x)
-        x = x.permute(0, 3, 1, 2)
+        x = x.permute(0, 3, 1, 2).contiguous()
         return x
 
 def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: bool = True):
@@ -105,7 +105,7 @@ class Rel_Attention(nn.Module):
         relative_coords[0] += self.win_h - 1
         relative_coords[1] += self.win_w - 1
         relative_coords[0] *= 2 * self.win_w - 1
-        relative_coords = relative_coords.permute(1,2,0)
+        relative_coords = relative_coords.permute(1,2,0).contiguous()
         relative_index = relative_coords.sum(-1).flatten().unsqueeze(1)
         self.register_buffer("relative_index", relative_index)
 
@@ -120,12 +120,12 @@ class Rel_Attention(nn.Module):
         x = x.reshape(-1,C,self.win_h,self.win_w)
 
         relative_bias = self.relative_bias_table.gather(0, self.relative_index.repeat(1, self.num_heads))
-        relative_bias = relative_bias.reshape(N,N,-1).permute(2,0,1)
+        relative_bias = relative_bias.reshape(N,N,-1).permute(2,0,1).contiguous()
         
         q,k,v = self.qkv(x).chunk(3, dim=1)
-        q = q.reshape([-1,C,N]).reshape(-1, self.num_heads, C // self.num_heads, N).permute(0,1,3,2)
-        k = k.reshape([-1,C,N]).reshape(-1, self.num_heads, C // self.num_heads, N).permute(0,1,3,2)
-        v = v.reshape([-1,C,N]).reshape(-1, self.num_heads, C // self.num_heads, N).permute(0,1,3,2)
+        q = q.reshape([-1,C,N]).reshape(-1, self.num_heads, C // self.num_heads, N).permute(0,1,3,2).contiguous()
+        k = k.reshape([-1,C,N]).reshape(-1, self.num_heads, C // self.num_heads, N).permute(0,1,3,2).contiguous()
+        v = v.reshape([-1,C,N]).reshape(-1, self.num_heads, C // self.num_heads, N).permute(0,1,3,2).contiguous()
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn = attn + relative_bias
@@ -139,12 +139,12 @@ class Rel_Attention(nn.Module):
 def block(x,window_size):
     B,C,H,W = x.shape
     x = x.reshape(B,C,H//window_size[0],window_size[0],W//window_size[1],window_size[1])
-    x = x.permute(0,2,4,1,3,5)
+    x = x.permute(0,2,4,1,3,5).contiguous()
     return x
                       
 def unblock(x):
     B,H,W,C,win_H,win_W = x.shape
-    x = x.permute(0,3,1,4,2,5).reshape(B,C,H*win_W,H*win_W)
+    x = x.permute(0,3,1,4,2,5).contiguous().reshape(B,C,H*win_W,H*win_W)
     return x
     
 class Window_Block(nn.Module):
@@ -186,8 +186,8 @@ class Grid_Block(nn.Module):
         grid_size = (x.shape[2]//self.grid_size[0], x.shape[3]//self.grid_size[1])
         
         out = block(self.norm1(x),grid_size)
-        out = out.permute(0,4,5,3,1,2)
-        out = self.attn(out).permute(0,4,5,3,1,2)
+        out = out.permute(0,4,5,3,1,2).contiguous()
+        out = self.attn(out).permute(0,4,5,3,1,2).contiguous()
         x = x + self.drop_path(unblock(out))
         out = self.mlp(self.norm2(x))
         x = x + self.drop_path(out)
